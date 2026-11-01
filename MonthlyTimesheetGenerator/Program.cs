@@ -149,7 +149,7 @@ internal static class WorkbookGenerator
         XDocument styles;
         using (var stream = stylesEntry.Open())
             styles = XDocument.Load(stream, LoadOptions.PreserveWhitespace);
-        var whiteStyles = AddFillStyles(styles, 2);
+        var whiteStyles = AddFillStyles(styles, FindSolidFill(styles, "FFFFFFFF"));
         var grayStyles = AddGrayStyles(styles);
         var noBorderStyles = AddNoBorderStyles(styles);
 
@@ -280,7 +280,25 @@ internal static class WorkbookGenerator
 
     private static Dictionary<int, int> AddGrayStyles(XDocument styles)
     {
-        return AddFillStyles(styles, 4);
+        return AddFillStyles(styles, FindSolidFill(styles, "FFD8D8D8"));
+    }
+
+    private static int FindSolidFill(XDocument styles, string color)
+    {
+        var fills = styles.Root?.Element(Main + "fills")
+            ?? throw new InvalidDataException("The template does not contain fills.");
+        var index = 0;
+        foreach (var fill in fills.Elements(Main + "fill"))
+        {
+            var pattern = fill.Element(Main + "patternFill");
+            var foreground = pattern?.Element(Main + "fgColor");
+            if ((string?)pattern?.Attribute("patternType") == "solid" &&
+                (string?)foreground?.Attribute("rgb") == color)
+                return index;
+            index++;
+        }
+
+        throw new InvalidDataException($"The template does not contain fill color {color}.");
     }
 
     private static Dictionary<int, int> AddNoBorderStyles(XDocument styles)
